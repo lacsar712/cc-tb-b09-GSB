@@ -30,7 +30,8 @@ def main():
             score double precision NOT NULL,
             verdict text NOT NULL,
             note text NOT NULL,
-            created_by text NOT NULL
+            created_by text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now()
         )"""
     )
     cur.execute("SELECT COUNT(*) FROM cuppings")
@@ -42,6 +43,46 @@ def main():
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (lot, aroma, taste, liquor, score, verdict, note, "taster"),
             )
+
+    # ---- 轮值名单 ----
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster_entries (
+            id serial PRIMARY KEY,
+            book text NOT NULL CHECK (book IN ('today', 'tomorrow')),
+            name text NOT NULL,
+            added_by text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            UNIQUE (book, name)
+        )"""
+    )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster_audit (
+            id serial PRIMARY KEY,
+            actor text NOT NULL,
+            action text NOT NULL,
+            book text,
+            target text,
+            detail text,
+            created_at timestamptz NOT NULL DEFAULT now()
+        )"""
+    )
+    # roster_day = 当前今日生效簿所对应的自然日；落后于 CURRENT_DATE 时触发自动日切
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster_meta (
+            id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            roster_day date NOT NULL
+        )"""
+    )
+    cur.execute(
+        "INSERT INTO roster_meta (id, roster_day) VALUES (1, CURRENT_DATE) ON CONFLICT (id) DO NOTHING"
+    )
+    # 初始班底：taster 在今日生效簿内，开箱即可交评
+    cur.execute(
+        """INSERT INTO roster_entries (book, name, added_by)
+           VALUES ('today', 'taster', '系统')
+           ON CONFLICT (book, name) DO NOTHING"""
+    )
+
     conn.commit()
     cur.close()
     conn.close()

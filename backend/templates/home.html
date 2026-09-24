@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block body %}
 {% if can_write %}
+{% if not on_roster %}
+<div class="warn">你不在今日生效簿内，现在交评会被拒绝；请先到<a href="{{ url_for('roster_page') }}">轮值名单</a>确认班底。</div>
+{% endif %}
 <form method="post" action="{{ url_for('create') }}" data-swap="1">
   <h2>新开一轮审评</h2>
   <input name="lot" placeholder="批次" required />

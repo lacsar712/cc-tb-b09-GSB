@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>轮值名单</h1>
+{% if meta %}
+<p>今日：{{ meta.today.isoformat() }}　今日生效簿锚定日期：{{ meta.roster_day.isoformat() }}</p>
+{% endif %}
+{% if not can_write %}
+<p>观察员只读：可查看两簿与排班履历，不能排班。</p>
+{% endif %}
+
+<div style="display:flex; gap:16px; flex-wrap:wrap">
+{% for book in ('today', 'tomorrow') %}
+<section style="flex:1; min-width:300px">
+  <h2>{{ labels[book] }}</h2>
+  <table>
+    <thead><tr><th>审评员</th><th>加入人</th><th>加入时间</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for entry in books[book] %}
+      <tr>
+        <td>{{ entry.name }}</td>
+        <td>{{ entry.added_by }}</td>
+        <td>{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        {% if can_write %}
+        <td>
+          <form class="inline" method="post" action="{{ url_for('roster_remove') }}">
+            <input type="hidden" name="book" value="{{ book }}" />
+            <input type="hidden" name="name" value="{{ entry.name }}" />
+            <button>移出</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ 4 if can_write else 3 }}">（空）</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if can_write %}
+  <form method="post" action="{{ url_for('roster_add') }}">
+    <input type="hidden" name="book" value="{{ book }}" />
+    <textarea name="names" rows="3" placeholder="一次粘贴多个人名，支持换行/逗号/顿号分隔；同簿重名自动跳过" required></textarea>
+    <button>批量加入{{ labels[book] }}</button>
+  </form>
+  {% endif %}
+</section>
+{% endfor %}
+</div>
+
+{% if can_write %}
+<form method="post" action="{{ url_for('roster_daycut') }}" style="margin-top:8px">
+  <button>执行日切（明日预排提升为今日生效，并清空明日预排）</button>
+</form>
+{% endif %}
+
+<h2>排班履历</h2>
+<table>
+  <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>簿</th><th>对象</th><th>详情</th></tr></thead>
+  <tbody>
+    {% for a in audits %}
+    <tr>
+      <td>{{ a.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+      <td>{{ a.actor }}</td>
+      <td>{{ action_labels.get(a.action, a.action) }}</td>
+      <td>{% if a.book %}{{ labels.get(a.book, a.book) }}{% endif %}</td>
+      <td>{{ a.target or '' }}</td>
+      <td>{{ a.detail or '' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">（暂无履历）</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
