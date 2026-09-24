@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>轮值名单</h1>
+<p>当前生效日期：{{ active_date }}
+  {% if on_duty %}<span class="badge on">你今日值班</span>{% endif %}
+</p>
+
+{% if can_write %}
+<form method="post" action="{{ url_for('roster_rollover') }}"
+      onsubmit="return confirm('立即执行日切？明日预排将提升为今日生效。')">
+  <button>执行日切（明日预排 → 今日生效）</button>
+</form>
+{% endif %}
+
+<div class="grid">
+  <div class="card">
+    <h2>今日生效簿</h2>
+    <p>不在此簿的审评员会话交评一律拒绝。</p>
+    <table>
+      <thead><tr><th>审评员</th><th>加入人</th><th>加入时间</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for r in today_roster %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.added_by }}</td>
+          <td>{{ r.added_at.strftime('%m-%d %H:%M') }}</td>
+          {% if can_write %}
+          <td>
+            <form method="post" action="{{ url_for('roster_remove') }}" style="margin:0;padding:0;background:none">
+              <input type="hidden" name="book" value="today" />
+              <input type="hidden" name="name" value="{{ r.name }}" />
+              <button>移出</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="4">（空）</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if can_write %}
+    <form method="post" action="{{ url_for('roster_add') }}">
+      <input type="hidden" name="book" value="today" />
+      <textarea name="names" rows="2" placeholder="粘贴人名批量加入，支持空格、逗号、换行分隔；重名自动跳过"></textarea>
+      <button>批量加入今日簿</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>明日预排簿</h2>
+    <p>日切后提升为新的今日生效簿，同时清空。</p>
+    <table>
+      <thead><tr><th>审评员</th><th>加入人</th><th>加入时间</th>{% if can_write %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for r in tomorrow_roster %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.added_by }}</td>
+          <td>{{ r.added_at.strftime('%m-%d %H:%M') }}</td>
+          {% if can_write %}
+          <td>
+            <form method="post" action="{{ url_for('roster_remove') }}" style="margin:0;padding:0;background:none">
+              <input type="hidden" name="book" value="tomorrow" />
+              <input type="hidden" name="name" value="{{ r.name }}" />
+              <button>移出</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="4">（空）</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if can_write %}
+    <form method="post" action="{{ url_for('roster_add') }}">
+      <input type="hidden" name="book" value="tomorrow" />
+      <textarea name="names" rows="2" placeholder="粘贴人名批量加入，支持空格、逗号、换行分隔；重名自动跳过"></textarea>
+      <button>批量加入明日簿</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>排班履历</h2>
+  {% if not can_write %}<p>观察员只读：可看两簿与履历，不能排班。</p>{% endif %}
+  <table>
+    <thead><tr><th>时间</th><th>操作人</th><th>事项</th></tr></thead>
+    <tbody>
+      {% for a in audits %}
+      <tr>
+        <td>{{ a.at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ a.actor }}</td>
+        <td>
+          {% if a.detail %}
+            {{ a.detail }}
+          {% else %}
+            {{ a.action }} {{ a.book or '' }} {{ a.name or '' }}
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">（暂无履历）</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

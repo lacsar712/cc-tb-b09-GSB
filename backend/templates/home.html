@@ -1,9 +1,15 @@
 {% extends "base.html" %}
 {% block body %}
 {% if can_write %}
+  {% if on_duty %}
+    <p><span class="badge on">今日值班</span> 你在今日生效簿内，可以交评。</p>
+  {% else %}
+    <p><span class="badge off">今日不值班</span> 你不在今日生效簿内，交评将被拒绝。去
+      <a href="{{ url_for('roster_page') }}">轮值名单</a> 查看。</p>
+  {% endif %}
 <form method="post" action="{{ url_for('create') }}" data-swap="1">
   <h2>新开一轮审评</h2>
-  <input name="lot" placeholder="批次" required />
+  <input name="lot" placeholder="批次（如 春芽）" required />
   <input name="aroma" type="number" step="0.1" min="0" max="10" placeholder="香气" required />
   <input name="taste" type="number" step="0.1" min="0" max="10" placeholder="滋味" required />
   <input name="liquor" type="number" step="0.1" min="0" max="10" placeholder="汤色" required />

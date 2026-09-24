@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import date
 
 import psycopg2
 
@@ -33,6 +34,33 @@ def main():
             created_by text NOT NULL
         )"""
     )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster (
+            book text NOT NULL CHECK (book IN ('today', 'tomorrow')),
+            name text NOT NULL,
+            added_by text NOT NULL,
+            added_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (book, name)
+        )"""
+    )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster_audit (
+            id serial PRIMARY KEY,
+            at timestamptz NOT NULL DEFAULT now(),
+            actor text NOT NULL,
+            action text NOT NULL,
+            book text,
+            name text,
+            detail text
+        )"""
+    )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS roster_meta (
+            id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            active_date date NOT NULL
+        )"""
+    )
+
     cur.execute("SELECT COUNT(*) FROM cuppings")
     if cur.fetchone()[0] == 0:
         for lot, aroma, taste, liquor in (("春茶-A", 8, 8, 7), ("夏茶-C", 5, 4, 6)):
@@ -42,6 +70,21 @@ def main():
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (lot, aroma, taste, liquor, score, verdict, note, "taster"),
             )
+
+    # 初始：今日生效簿含 taster，明日预排簿为空；履历记一条初始化
+    cur.execute("SELECT COUNT(*) FROM roster_meta")
+    if cur.fetchone()[0] == 0:
+        cur.execute("INSERT INTO roster_meta (id, active_date) VALUES (1, %s)", (date.today(),))
+        cur.execute(
+            """INSERT INTO roster (book, name, added_by)
+               SELECT 'today', 'taster', 'system'
+               WHERE NOT EXISTS (SELECT 1 FROM roster WHERE book = 'today' AND name = 'taster')"""
+        )
+        cur.execute(
+            """INSERT INTO roster_audit (actor, action, book, name, detail)
+               VALUES ('system', 'init', 'today', 'taster', '初始今日生效簿')"""
+        )
+
     conn.commit()
     cur.close()
     conn.close()
